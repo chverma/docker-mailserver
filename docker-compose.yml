@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mailserver:
+    image: docker.io/mailserver/docker-mailserver:latest
+    hostname: ${HOSTNAME}
+    domainname: ${DOMAINNAME}
+    container_name: ${CONTAINER_NAME}
+    env_file: mailserver.env
+    # To avoid conflicts with yaml base-60 float, DO NOT remove the quotation marks.
+    ports:
+      - "25:25"
+      - "143:143"
+      - "587:587"
+      - "993:993"
+    volumes:
+      - maildata:/var/mail
+      - mailstate:/var/mail-state
+      - maillogs:/var/log/mail
+      - /etc/localtime:/etc/localtime:ro
+      - ./config/:/tmp/docker-mailserver/${SELINUX_LABEL}
+    restart: always
+    stop_grace_period: 1m
+    cap_add: [ "NET_ADMIN", "SYS_PTRACE" ]
+  roundcube:
+    image: roundcube/roundcubemail
+    ports:
+      - "9000:80"
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=${CONTAINER_NAME}
+      - ROUNDCUBEMAIL_SMTP_SERVER=tls://${CONTAINER_NAME}
+      - ROUNDCUBEMAIL_SMTP_PORT=587
+    depends_on:
+      - mailserver
+    links:
+      - mailserver
+    volumes:
+      - "./config_roundcube/defaults.inc.php:/var/www/html/config/defaults.inc.php"
+volumes:
+  maildata:
+  mailstate:
+  maillogs:
